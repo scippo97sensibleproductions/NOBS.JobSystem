@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOBS.JobSystem.UI", "NOBS.JobSystem.UI\NOBS.JobSystem.UI.csproj", "{34CD536C-6A10-4A04-8880-388CE4EB161D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOBS.JobSystem", "NOBS.JobSystem\NOBS.JobSystem.csproj", "{FC9627BB-9F15-4B10-8008-04A0673CFB78}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOBS.JobSystem.Hosting", "NOBS.JobSystem.Hosting\NOBS.JobSystem.Hosting.csproj", "{5DE5DDAD-2A67-4D67-A39C-43316E073374}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{34CD536C-6A10-4A04-8880-388CE4EB161D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34CD536C-6A10-4A04-8880-388CE4EB161D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34CD536C-6A10-4A04-8880-388CE4EB161D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34CD536C-6A10-4A04-8880-388CE4EB161D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC9627BB-9F15-4B10-8008-04A0673CFB78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC9627BB-9F15-4B10-8008-04A0673CFB78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC9627BB-9F15-4B10-8008-04A0673CFB78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC9627BB-9F15-4B10-8008-04A0673CFB78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DE5DDAD-2A67-4D67-A39C-43316E073374}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DE5DDAD-2A67-4D67-A39C-43316E073374}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DE5DDAD-2A67-4D67-A39C-43316E073374}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DE5DDAD-2A67-4D67-A39C-43316E073374}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

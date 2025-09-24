@@ -1,0 +1,95 @@
+﻿@page "/jobs"
+@layout MainLayout
+@inject JobStatusService JobStatusService
+@implements IAsyncDisposable
+
+<PageTitle>Job Dashboard</PageTitle>
+
+@if (_jobs is null)
+{
+    <p>Loading job statuses...</p>
+}
+else if (_jobs.Count == 0)
+{
+    <p>No scheduled jobs are registered in the system.</p>
+}
+else
+{
+    <table>
+        <thead>
+        <tr>
+            <th>Job Name</th>
+            <th>Last Successful Run (UTC)</th>
+            <th>Next Scheduled Run (UTC)</th>
+            <th>CRON Schedule</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var job in _jobs)
+        {
+            <tr>
+                <td data-label="Job Name">@job.JobName</td>
+                <td data-label="Last Run">@FormatDateTime(job.LastRunUtc)</td>
+                <td data-label="Next Run">@FormatDateTime(job.NextRunUtc)</td>
+                <td data-label="Schedule">@job.CronExpression</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<JobStatusDto>? _jobs;
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource? _cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadJobsAsync();
+        
+        _cts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        
+        _ = PollForUpdatesAsync();
+    }
+    
+    private async Task PollForUpdatesAsync()
+    {
+        try
+        {
+            while (await _timer!.WaitForNextTickAsync(_cts!.Token))
+            {
+                await LoadJobsAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // This is expected when the component is disposed.
+        }
+    }
+
+    private async Task LoadJobsAsync()
+    {
+        try
+        {
+            _jobs = await JobStatusService.GetJobStatusesAsync(_cts?.Token ?? default);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignored.
+        }
+    }
+
+    private static string FormatDateTime(DateTime? dt) => dt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cts is not null)
+        {
+            await _cts.CancelAsync();
+            _cts.Dispose();
+        }
+        _timer?.Dispose();
+    }
+}
