@@ -1,9 +1,11 @@
 ﻿@page "/jobs"
 @layout MainLayout
 @inject JobStatusService JobStatusService
-@implements IAsyncDisposable
 
 <PageTitle>Job Dashboard</PageTitle>
+<HeadContent>
+    <meta http-equiv="refresh" content="30">
+</HeadContent>
 
 @if (_jobs is null)
 {
@@ -40,56 +42,11 @@ else
 
 @code {
     private List<JobStatusDto>? _jobs;
-    private PeriodicTimer? _timer;
-    private CancellationTokenSource? _cts;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadJobsAsync();
-        
-        _cts = new CancellationTokenSource();
-        _timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-        
-        _ = PollForUpdatesAsync();
-    }
-    
-    private async Task PollForUpdatesAsync()
-    {
-        try
-        {
-            while (await _timer!.WaitForNextTickAsync(_cts!.Token))
-            {
-                await LoadJobsAsync();
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // This is expected when the component is disposed.
-        }
-    }
-
-    private async Task LoadJobsAsync()
-    {
-        try
-        {
-            _jobs = await JobStatusService.GetJobStatusesAsync(_cts?.Token ?? default);
-        }
-        catch (OperationCanceledException)
-        {
-            // Ignored.
-        }
+        _jobs = await JobStatusService.GetJobStatusesAsync(CancellationToken.None);
     }
 
     private static string FormatDateTime(DateTime? dt) => dt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A";
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_cts is not null)
-        {
-            await _cts.CancelAsync();
-            _cts.Dispose();
-        }
-        _timer?.Dispose();
-    }
 }

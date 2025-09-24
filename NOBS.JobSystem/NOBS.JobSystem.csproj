@@ -9,7 +9,7 @@
 
         <!-- NuGet Package Details -->
         <PackageId>NOBS.JobSystem</PackageId>
-        <Version>1.0.0</Version>
+        <Version>1.0.1</Version>
         <Authors>Scippo97</Authors>
         <Company>Scippo97 Sensible Productions</Company>
         <Description>A lightweight, database-backed, dependency-injection friendly job scheduling system for .NET applications with CRON support, job chaining, and error handling.</Description>
