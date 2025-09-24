@@ -9,6 +9,7 @@ A lightweight, database-backed, dependency-injection friendly job scheduling sys
 
 ## Key Features
 
+- **Stable Job Identity:** Use the `[JobName]` attribute to assign a persistent identifier to your jobs, preventing history loss when you refactor code.
 - **CRON Scheduling:** Define recurring jobs using standard CRON expressions.
 - **Job Chaining:** Create workflows by specifying continuation jobs on success or failure.
 - **Persistent History:** Automatically tracks the last successful run time for each job in a database, ensuring schedules resume correctly after an application restart.
@@ -43,20 +44,21 @@ dotnet add package NOBS.JobSystem
 
 ## Quick Start
 
-### 1. Define Jobs
+### 1. Define Jobs with Stable Names
 
-Create classes that implement the `IJob` interface.
+Create classes that implement the `IJob` interface. **It is strongly recommended to assign a stable, unique name to every job using the `[JobName]` attribute.**
 
 ```csharp
 // src/MyWebApp/Jobs/HelloWorldJob.cs
 using NOBS.JobSystem.Abstractions;
 
+[JobName("hello-world-greeter")]
 public class HelloWorldJob(ILogger<HelloWorldJob> logger) : IJob
 {
     public Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Hello from a scheduled job at {UtcNow}!", DateTime.UtcNow);
-        return Task.FromResult(JobExecutionResult.Succeeded);
+        return Task.FromResult(JobExecutionResult.Success());
     }
 }
 ```
@@ -129,23 +131,26 @@ Jobs can trigger other jobs upon completion.
 **Important:** All jobs in a chain must be registered with the `JobRegistry` in `Program.cs` to be available for dependency injection.
 
 ```csharp
-// Job definitions
+// Job definitions with stable names
+[JobName("data-processor")]
 public class DataProcessingJob : IJob
 {
     public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
     {
         bool success = await DoSomeWorkAsync();
-
-        if (success)
-        {
-            return JobExecutionResult.Success(typeof(NotificationJob));
-        }
-
-        return JobExecutionResult.Failure(typeof(CleanupJob));
+        return success 
+            ? JobExecutionResult.Success(typeof(NotificationJob)) 
+            : JobExecutionResult.Failure(typeof(CleanupJob));
     }
 }
+
+[JobName("user-notifier")]
 public class NotificationJob : IJob { /* ... */ }
+
+[JobName("cleanup-on-failure")]
 public class CleanupJob : IJob { /* ... */ }
+
+[JobName("critical-failure-alert")]
 public class CriticalFailureAlertJob : IJob { /* ... */ }
 
 
@@ -157,6 +162,14 @@ registry.AddJob<CriticalFailureAlertJob>();
 registry.AddJob<DataProcessingJob>("0 2 * * *") // Run daily at 2 AM
     .OnError<CriticalFailureAlertJob>();       // Run this if DataProcessingJob throws
 ```
+
+### Stable Job Identity
+
+The job name is used as the primary key in the database to track execution history. By default, the system uses the job's class name (e.g., `DataProcessingJob`). This is brittle; if you rename or move the class, its execution history will be lost, and it will be treated as a new job.
+
+The `[JobName]` attribute decouples the job's identity from its implementation details. Once a job is in production, its `[JobName]` should be considered immutable.
+
+The system will throw an exception on startup if it detects two jobs registered with the same name.
 
 ## Building From Source
 

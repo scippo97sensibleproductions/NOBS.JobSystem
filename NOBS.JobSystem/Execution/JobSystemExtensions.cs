@@ -40,6 +40,8 @@ public static class JobSystemExtensions
         var registry = new JobRegistry();
         configureJobs(registry);
 
+        ValidateJobNameUniqueness(registry);
+
         var allJobTypes = registry.JobConfigurations
             .SelectMany(c => new[] { c.JobType, c.ErrorJobType })
             .Where(t => t is not null)
@@ -55,5 +57,21 @@ public static class JobSystemExtensions
         services.AddHostedService<ScheduledJobService>();
 
         return services;
+    }
+
+    private static void ValidateJobNameUniqueness(JobRegistry registry)
+    {
+        var duplicateNames = registry.JobConfigurations
+            .GroupBy(c => c.Name)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateNames.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Duplicate job names were detected. Ensure each job has a unique name via the [JobName] attribute or a unique class name. " +
+                $"Duplicates found: {string.Join(", ", duplicateNames)}");
+        }
     }
 }

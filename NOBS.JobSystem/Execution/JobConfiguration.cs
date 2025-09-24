@@ -1,4 +1,5 @@
-﻿using NCrontab;
+﻿using System.Reflection;
+using NCrontab;
 using NOBS.JobSystem.Abstractions;
 
 namespace NOBS.JobSystem.Execution;
@@ -14,7 +15,7 @@ public sealed class JobConfiguration
     public Type JobType { get; }
 
     /// <summary>
-    /// Gets the full name of the job type.
+    /// Gets the unique, stable name of the job.
     /// </summary>
     public string Name { get; }
 
@@ -41,13 +42,18 @@ public sealed class JobConfiguration
         }
 
         JobType = jobType;
-        Name = jobType.FullName ?? jobType.Name;
+        Name = GetJobName(jobType);
         CronExpression = cronExpression;
 
         if (!string.IsNullOrWhiteSpace(cronExpression))
         {
             Schedule = CrontabSchedule.Parse(cronExpression, new CrontabSchedule.ParseOptions { IncludingSeconds = false });
         }
+    }
+    
+    private static string GetJobName(Type jobType)
+    {
+        return jobType.GetCustomAttribute<JobNameAttribute>()?.Name ?? jobType.Name;
     }
 
     /// <summary>
