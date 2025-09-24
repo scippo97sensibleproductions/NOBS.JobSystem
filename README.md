@@ -16,7 +16,7 @@ A lightweight, database-backed, dependency-injection friendly job scheduling sys
 - **DI-First Design:** Jobs are resolved from the service container, giving them access to all registered application services.
 - **Error Handling:** Configure specific jobs to run when a preceding job fails or throws an exception.
 - **Optional Monitoring UI:** A clean, lightweight Blazor UI to monitor job statuses, last run times, and next scheduled runs.
-- **EF Core Migrations:** The database schema for storing job history is managed automatically via Entity Framework Core migrations.
+- **Automatic Schema Creation:** The required database schema and table for storing job history are created automatically and idempotently on application startup.
 
 ## Packages
 
@@ -79,20 +79,10 @@ builder.Services.AddHostedJobSystem(
     options =>
     {
         options.ConnectionString = connectionString;
-        options.PollingFrequency = TimeSpan.FromSeconds(30); // Optional: Default is 1 minute
     },
     registry =>
     {
-        // Register a scheduled job
         registry.AddJob<HelloWorldJob>("* * * * *");
-        
-        // Register jobs that are only used for chaining or error handling
-        registry.AddJob<ErrorLoggingJob>();
-        registry.AddJob<InitialJob>();
-
-        // Configure a scheduled job with an error handler
-        registry.AddJob<InitialJob>("0 * * * *") // Run hourly
-            .OnError<ErrorLoggingJob>();         // Run ErrorLoggingJob if InitialJob fails
     }
 );
 
@@ -116,51 +106,160 @@ Ensure the connection string is present in your `appsettings.json`.
 }
 ```
 
-The system will automatically create and migrate the database on startup to add its `ExecutionHistory` table.
+The system will automatically create the necessary database schema and table on startup if they do not already exist.
 
 ## Advanced Usage
 
-### Job Chaining
+### Configuring System Options
 
-Jobs can trigger other jobs upon completion.
-
--   `JobExecutionResult.Success(Type nextJob)`: Queues a new job immediately if the current job succeeds.
--   `JobExecutionResult.Failure(Type nextJob)`: Queues a new job immediately if the current job returns a failure result.
--   `.OnError<TErrorJob>()`: A declarative way to specify an error-handling job if the configured job throws an unhandled exception.
-
-**Important:** All jobs in a chain must be registered with the `JobRegistry` in `Program.cs` to be available for dependency injection.
+The `JobSystemOptions` class provides several parameters to customize the system's behavior.
 
 ```csharp
-// Job definitions with stable names
-[JobName("data-processor")]
-public class DataProcessingJob : IJob
+// src/MyWebApp/Program.cs
+builder.Services.AddHostedJobSystem(
+    options =>
+    {
+        // REQUIRED: The database connection string for storing job history.
+        options.ConnectionString = connectionString;
+
+        // OPTIONAL: The frequency at which the system checks for due jobs.
+        // Default is 1 minute.
+        options.PollingFrequency = TimeSpan.FromSeconds(30);
+        
+        // OPTIONAL: The database schema to use for the history table.
+        // Default is "jobs".
+        options.SchemaName = "JobRunner";
+
+        // OPTIONAL: The table name for the job execution history.
+        // Default is "ExecutionHistory".
+        options.HistoryTableName = "JobHistory";
+    },
+    registry => { /* ... */ }
+);
+```
+
+### Advanced Workflows and Error Handling
+
+The system provides two primary mechanisms for handling non-successful outcomes:
+1.  **Declarative `.OnError<T>()`:** This handler is invoked **only** when a job's `ExecuteAsync` method throws an unhandled exception. It is ideal for global, unexpected failure conditions like a database connection being lost.
+2.  **Imperative `JobExecutionResult.Failure(typeof(T))`:** This handler is invoked when a job completes its logic but determines a failure state (e.g., validation fails, an external API returns a non-200 status). It represents a controlled, expected failure path.
+
+An unhandled exception will always trigger the `.OnError<T>` handler if it is configured, superseding any `Failure` result.
+
+```csharp
+// Job definitions
+[JobName("data-fetch")]
+public class DataFetchJob : IJob
 {
     public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
     {
-        bool success = await DoSomeWorkAsync();
-        return success 
-            ? JobExecutionResult.Success(typeof(NotificationJob)) 
-            : JobExecutionResult.Failure(typeof(CleanupJob));
+        var (isSuccess, hasData) = await FetchDataFromApiAsync();
+
+        if (!isSuccess)
+        {
+            // Controlled failure path
+            return JobExecutionResult.Failure(typeof(ApiDownAlertJob));
+        }
+
+        // Success path
+        return JobExecutionResult.Success(typeof(ProcessDataJob));
     }
 }
 
-[JobName("user-notifier")]
-public class NotificationJob : IJob { /* ... */ }
+[JobName("data-process")]
+public class ProcessDataJob : IJob { /* ... */ }
 
-[JobName("cleanup-on-failure")]
-public class CleanupJob : IJob { /* ... */ }
+[JobName("api-down-alert")]
+public class ApiDownAlertJob : IJob { /* ... */ }
 
 [JobName("critical-failure-alert")]
 public class CriticalFailureAlertJob : IJob { /* ... */ }
 
 
 // In Program.cs
-registry.AddJob<NotificationJob>();
-registry.AddJob<CleanupJob>();
+registry.AddJob<ProcessDataJob>();
+registry.AddJob<ApiDownAlertJob>();
 registry.AddJob<CriticalFailureAlertJob>();
 
-registry.AddJob<DataProcessingJob>("0 2 * * *") // Run daily at 2 AM
-    .OnError<CriticalFailureAlertJob>();       // Run this if DataProcessingJob throws
+registry.AddJob<DataFetchJob>("0 * * * *")      // Run hourly
+    .OnError<CriticalFailureAlertJob>();       // Run if DataFetchJob throws an unhandled exception
+```
+
+### Leveraging Dependency Injection
+
+Jobs are resolved from the service container, allowing for the injection of any registered application service.
+
+```csharp
+// A custom application service
+public interface IReportingService
+{
+    Task<byte[]> GenerateMonthlyReportAsync(CancellationToken cancellationToken);
+}
+
+public class ReportingService : IReportingService 
+{
+    // ... implementation
+}
+
+// The job that uses the service
+[JobName("monthly-report-generator")]
+public class MonthlyReportJob(IReportingService reportingService, ILogger<MonthlyReportJob> logger) : IJob
+{
+    public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Generating monthly report.");
+        var reportBytes = await reportingService.GenerateMonthlyReportAsync(cancellationToken);
+        // ... save or email report
+        return JobExecutionResult.Success();
+    }
+}
+
+// In Program.cs
+var builder = WebApplication.CreateBuilder(args);
+
+// Register your application services
+builder.Services.AddScoped<IReportingService, ReportingService>();
+
+builder.Services.AddHostedJobSystem(
+    options => { /* ... */ },
+    registry =>
+    {
+        // Register the job
+        registry.AddJob<MonthlyReportJob>("0 0 1 * *"); // Run on the 1st of every month
+    }
+);
+```
+
+### Handling Cancellation
+
+For long-running jobs, it is critical to respect the `CancellationToken` provided to `ExecuteAsync`. This ensures that jobs can be terminated gracefully when the application shuts down. Pass the token to any async methods that support it and periodically check its status in long loops.
+
+```csharp
+[JobName("long-running-task")]
+public class LongRunningJob(ILogger<LongRunningJob> logger) : IJob
+{
+    public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Starting long-running process.");
+
+        for (int i = 0; i < 100; i++)
+        {
+            // Check for cancellation before starting a unit of work
+            if (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning("Job was cancelled. Aborting.");
+                return JobExecutionResult.Failure();
+            }
+
+            // Pass the token to I/O-bound or cancellable operations
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            logger.LogTrace("Completed step {Step}", i + 1);
+        }
+
+        logger.LogInformation("Long-running process finished successfully.");
+        return JobExecutionResult.Success();
+    }
+}
 ```
 
 ### Stable Job Identity
