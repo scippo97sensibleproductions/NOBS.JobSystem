@@ -43,13 +43,12 @@ dotnet add package NOBS.JobSystem
 
 ## Quick Start
 
-### 1. Define a Job
+### 1. Define Jobs
 
-Create a class that implements the `IJob` interface.
+Create classes that implement the `IJob` interface.
 
 ```csharp
 // src/MyWebApp/Jobs/HelloWorldJob.cs
-
 using NOBS.JobSystem.Abstractions;
 
 public class HelloWorldJob(ILogger<HelloWorldJob> logger) : IJob
@@ -57,18 +56,17 @@ public class HelloWorldJob(ILogger<HelloWorldJob> logger) : IJob
     public Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Hello from a scheduled job at {UtcNow}!", DateTime.UtcNow);
-        return Task.FromResult(JobExecutionResult.Success());
+        return Task.FromResult(JobExecutionResult.Succeeded);
     }
 }
 ```
 
 ### 2. Configure the Job System
 
-In your `Program.cs`, add the job system, configure the database connection, and register your jobs.
+In your `Program.cs`, add the job system, configure the database connection, and register your jobs. **All jobs, including those used only for chaining, must be registered.**
 
 ```csharp
 // src/MyWebApp/Program.cs
-
 using NOBS.JobSystem.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,10 +81,14 @@ builder.Services.AddHostedJobSystem(
     },
     registry =>
     {
-        // Run every minute
+        // Register a scheduled job
         registry.AddJob<HelloWorldJob>("* * * * *");
         
-        // Example of a chained job
+        // Register jobs that are only used for chaining or error handling
+        registry.AddJob<ErrorLoggingJob>();
+        registry.AddJob<InitialJob>();
+
+        // Configure a scheduled job with an error handler
         registry.AddJob<InitialJob>("0 * * * *") // Run hourly
             .OnError<ErrorLoggingJob>();         // Run ErrorLoggingJob if InitialJob fails
     }
@@ -124,7 +126,10 @@ Jobs can trigger other jobs upon completion.
 -   `JobExecutionResult.Failure(Type nextJob)`: Queues a new job immediately if the current job returns a failure result.
 -   `.OnError<TErrorJob>()`: A declarative way to specify an error-handling job if the configured job throws an unhandled exception.
 
+**Important:** All jobs in a chain must be registered with the `JobRegistry` in `Program.cs` to be available for dependency injection.
+
 ```csharp
+// Job definitions
 public class DataProcessingJob : IJob
 {
     public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
@@ -133,16 +138,22 @@ public class DataProcessingJob : IJob
 
         if (success)
         {
-            // On success, trigger the notification job
             return JobExecutionResult.Success(typeof(NotificationJob));
         }
 
-        // On failure, trigger the cleanup job
         return JobExecutionResult.Failure(typeof(CleanupJob));
     }
 }
+public class NotificationJob : IJob { /* ... */ }
+public class CleanupJob : IJob { /* ... */ }
+public class CriticalFailureAlertJob : IJob { /* ... */ }
+
 
 // In Program.cs
+registry.AddJob<NotificationJob>();
+registry.AddJob<CleanupJob>();
+registry.AddJob<CriticalFailureAlertJob>();
+
 registry.AddJob<DataProcessingJob>("0 2 * * *") // Run daily at 2 AM
     .OnError<CriticalFailureAlertJob>();       // Run this if DataProcessingJob throws
 ```

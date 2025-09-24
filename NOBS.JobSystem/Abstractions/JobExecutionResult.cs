@@ -5,6 +5,9 @@
 /// </summary>
 public sealed record JobExecutionResult
 {
+    private static readonly JobExecutionResult SuccessInstance = new() { Succeeded = true };
+    private static readonly JobExecutionResult FailureInstance = new() { Succeeded = false };
+
     /// <summary>
     /// Gets a value indicating whether the job succeeded.
     /// </summary>
@@ -23,12 +26,14 @@ public sealed record JobExecutionResult
     /// <summary>
     /// Creates a result indicating successful execution with no continuation job.
     /// </summary>
-    public static JobExecutionResult Success() => new() { Succeeded = true };
+    /// <returns>A singleton result object indicating success.</returns>
+    public static JobExecutionResult Success() => SuccessInstance;
 
     /// <summary>
     /// Creates a result indicating successful execution and specifies a continuation job.
     /// </summary>
     /// <param name="nextJob">The type of the job to execute next.</param>
+    /// <returns>A new result object indicating success with a continuation.</returns>
     public static JobExecutionResult Success(Type nextJob) => new()
     {
         Succeeded = true,
@@ -38,12 +43,14 @@ public sealed record JobExecutionResult
     /// <summary>
     /// Creates a result indicating failed execution with no continuation job.
     /// </summary>
-    public static JobExecutionResult Failure() => new() { Succeeded = false };
+    /// <returns>A singleton result object indicating failure.</returns>
+    public static JobExecutionResult Failure() => FailureInstance;
 
     /// <summary>
     /// Creates a result indicating failed execution and specifies a continuation job.
     /// </summary>
     /// <param name="nextJob">The type of the job to execute next.</param>
+    /// <returns>A new result object indicating failure with a continuation.</returns>
     public static JobExecutionResult Failure(Type nextJob) => new()
     {
         Succeeded = false,

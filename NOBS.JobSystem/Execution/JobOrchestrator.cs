@@ -85,7 +85,7 @@ internal class JobOrchestrator(
         await using var scope = serviceProvider.CreateAsyncScope();
         if (scope.ServiceProvider.GetService(config.JobType) is not IJob job)
         {
-            logger.LogError("Failed to resolve job '{JobName}' from DI container.", config.Name);
+            logger.LogError("Failed to resolve job '{JobName}' from DI container. Ensure it is registered in Program.cs.", config.Name);
             return;
         }
 
@@ -140,12 +140,20 @@ internal class JobOrchestrator(
                 break;
         }
 
-        if (nextJobType is not null)
+        if (nextJobType is null)
         {
-            var continuationJob = jobRegistry.FindByType(nextJobType) ?? new JobConfiguration(nextJobType, null);
-            logger.LogInformation("Queueing continuation/error job: {JobName}", continuationJob.Name);
-            continuationQueue.Enqueue(continuationJob);
+            return;
         }
+
+        var continuationJob = jobRegistry.FindByType(nextJobType);
+        if (continuationJob is null)
+        {
+            logger.LogError("Continuation job of type '{JobType}' was not registered and will not be executed.", nextJobType.FullName);
+            return;
+        }
+        
+        logger.LogInformation("Queueing continuation/error job: {JobName}", continuationJob.Name);
+        continuationQueue.Enqueue(continuationJob);
     }
 
     private async Task UpdateJobHistoryAsync(string jobName, DateTime executionTime, CancellationToken ct)
