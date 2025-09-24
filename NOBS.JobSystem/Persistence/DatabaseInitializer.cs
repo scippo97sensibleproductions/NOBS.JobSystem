@@ -15,7 +15,7 @@ internal sealed class DatabaseInitializer(IServiceProvider serviceProvider, ILog
         
         try
         {
-            await dbContext.Database.MigrateAsync(cancellationToken);
+            await dbContext.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Job system database schema migrated successfully.");
         }
         catch (Exception ex)
