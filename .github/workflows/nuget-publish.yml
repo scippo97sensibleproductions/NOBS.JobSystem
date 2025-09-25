@@ -3,8 +3,8 @@ name: Publish to NuGet
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   publish:
@@ -29,10 +29,9 @@ jobs:
       - name: Determine Version
         id: minver
         run: |
-          VERSION=$(minver --tag-prefix v --minimum-major-minor 1.0)
-          STABLE_VERSION=${VERSION%%-*}
-          echo "version=$STABLE_VERSION" >> $GITHUB_OUTPUT
-          echo "Determined Version: $STABLE_VERSION (Full Version: $VERSION)"
+          VERSION=$(minver --tag-prefix v)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Determined Version: $VERSION"
         shell: bash
 
       - name: Build Solution
