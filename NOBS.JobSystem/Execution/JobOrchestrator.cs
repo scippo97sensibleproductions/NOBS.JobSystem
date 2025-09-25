@@ -131,7 +131,7 @@ internal class JobOrchestrator(
         {
             ({} _, _) => (JobCompletionState.UnhandledException, config.ErrorJobType),
             (_, { Succeeded: true } r) => (JobCompletionState.Success, r.NextJobTypeOnSuccess),
-            (_, var r) => (JobCompletionState.Failure, config.ErrorJobType ?? r?.NextJobTypeOnError)
+            var (_, r) => (JobCompletionState.Failure, config.ErrorJobType ?? r?.NextJobTypeOnError)
         };
 
         switch (state)
