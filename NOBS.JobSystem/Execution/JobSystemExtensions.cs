@@ -37,6 +37,7 @@ public static class JobSystemExtensions
         }
 
         services.TryAddSingleton(registry);
+        services.TryAddSingleton<IJobExecutionTracker, InMemoryJobExecutionTracker>();
         services.TryAddSingleton<JobOrchestrator>();
         services.TryAddSingleton<IJobTrigger, InMemoryJobTrigger>();
 

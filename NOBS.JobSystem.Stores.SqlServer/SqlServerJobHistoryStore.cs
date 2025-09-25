@@ -28,7 +28,7 @@ internal sealed class SqlServerJobHistoryStore(
                    BEGIN
                        CREATE TABLE [{schemaName}].[{tableName}] (
                            [JobName] nvarchar(450) NOT NULL,
-                           [LastSuccessfulRun] datetime2(7) NOT NULL,
+                           [LastSuccessfulRun] datetimeoffset(7) NOT NULL,
                            CONSTRAINT [{pkName}] PRIMARY KEY CLUSTERED ([JobName] ASC)
                        );
                    END
@@ -37,7 +37,7 @@ internal sealed class SqlServerJobHistoryStore(
         await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken).ConfigureAwait(false);
     }
     
-    public async Task<IReadOnlyDictionary<string, DateTime>> GetLastRunTimesAsync(IEnumerable<string> jobNames, CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<string, DateTimeOffset>> GetLastRunTimesAsync(IEnumerable<string> jobNames, CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         
@@ -48,7 +48,7 @@ internal sealed class SqlServerJobHistoryStore(
             .ConfigureAwait(false);
     }
 
-    public async Task SetLastSuccessfulRunAsync(string jobName, DateTime lastSuccessfulRun, CancellationToken cancellationToken)
+    public async Task SetLastSuccessfulRunAsync(string jobName, DateTimeOffset lastSuccessfulRun, CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var historyRecord = await dbContext.JobExecutionHistories.FindAsync([jobName], cancellationToken)

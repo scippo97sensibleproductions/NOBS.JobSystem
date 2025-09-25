@@ -21,17 +21,19 @@ internal class JobStatusService(
         }
 
         var histories = await historyStore.GetLastRunTimesAsync(jobNames, ct).ConfigureAwait(false);
-        var now = DateTime.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         return jobRegistry.JobConfigurations
             .Where(c => c.Schedule is not null)
             .Select(config =>
             {
                 histories.TryGetValue(config.Name, out var lastRun);
+                DateTime? nextRunDateTime = config.Schedule?.GetNextOccurrence((lastRun == default ? now : lastRun).UtcDateTime);
+
                 return new JobStatusDto(config.Name, config.CronExpression ?? "N/A")
                 {
-                    LastRunUtc = lastRun == DateTime.MinValue ? null : lastRun,
-                    NextRunUtc = config.Schedule?.GetNextOccurrence(lastRun == DateTime.MinValue ? now : lastRun)
+                    LastRunUtc = lastRun == default ? null : (DateTimeOffset?)lastRun,
+                    NextRunUtc = nextRunDateTime.HasValue ? new DateTimeOffset(nextRunDateTime.Value) : null
                 };
             })
             .OrderBy(s => s.JobName)

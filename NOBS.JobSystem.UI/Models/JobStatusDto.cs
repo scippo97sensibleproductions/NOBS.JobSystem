@@ -20,10 +20,10 @@ public sealed class JobStatusDto(string jobName, string cronExpression)
     /// <summary>
     /// Gets or sets the last successful run time in UTC.
     /// </summary>
-    public DateTime? LastRunUtc { get; set; }
+    public DateTimeOffset? LastRunUtc { get; set; }
 
     /// <summary>
     /// Gets or sets the next scheduled run time in UTC.
     /// </summary>
-    public DateTime? NextRunUtc { get; set; }
+    public DateTimeOffset? NextRunUtc { get; set; }
 }

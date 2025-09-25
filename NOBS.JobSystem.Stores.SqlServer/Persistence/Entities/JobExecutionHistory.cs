@@ -7,5 +7,5 @@ internal sealed class JobExecutionHistory
     [Key]
     public string JobName { get; set; } = string.Empty;
 
-    public DateTime LastSuccessfulRun { get; set; }
+    public DateTimeOffset LastSuccessfulRun { get; set; }
 }

@@ -3,9 +3,6 @@
 @inject JobStatusService JobStatusService
 
 <PageTitle>Job Dashboard</PageTitle>
-<HeadContent>
-    <meta http-equiv="refresh" content="30">
-</HeadContent>
 
 @if (_jobs is null)
 {
@@ -47,6 +44,12 @@ else
     </table>
 }
 
+<script>
+    const intervalId = setInterval(() => {
+        window.location.reload();
+    }, 30000);
+</script>
+
 @code {
     private List<JobStatusDto>? _jobs;
 
@@ -55,5 +58,5 @@ else
         _jobs = await JobStatusService.GetJobStatusesAsync(CancellationToken.None);
     }
 
-    private static string FormatDateTime(DateTime? dt) => dt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A";
+    private static string FormatDateTime(DateTimeOffset? dt) => dt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A";
 }

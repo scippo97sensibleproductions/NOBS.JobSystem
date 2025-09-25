@@ -9,6 +9,7 @@ internal class JobOrchestrator(
     IServiceProvider serviceProvider,
     IJobHistoryStore historyStore,
     JobRegistry jobRegistry,
+    IJobExecutionTracker executionTracker,
     ILogger<JobOrchestrator> logger)
 {
     private enum JobCompletionState
@@ -20,7 +21,7 @@ internal class JobOrchestrator(
 
     public async Task RunScheduledJobsAsync(CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTimeOffset.UtcNow;
         var dueJobs = await GetDueJobsAsync(now, cancellationToken).ConfigureAwait(false);
 
         if (dueJobs.Count == 0)
@@ -59,7 +60,7 @@ internal class JobOrchestrator(
         }
     }
 
-    private async Task<List<JobConfiguration>> GetDueJobsAsync(DateTime now, CancellationToken cancellationToken)
+    private async Task<List<JobConfiguration>> GetDueJobsAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var scheduledJobs = jobRegistry.JobConfigurations.Where(c => c.Schedule is not null).ToList();
         var jobNames = scheduledJobs.Select(c => c.Name);
@@ -76,7 +77,7 @@ internal class JobOrchestrator(
                 continue;
             }
 
-            var nextOccurrenceUtc = config.Schedule!.GetNextOccurrence(lastRunUtc);
+            var nextOccurrenceUtc = config.Schedule!.GetNextOccurrence(lastRunUtc.UtcDateTime);
 
             if (nextOccurrenceUtc <= now)
             {
@@ -90,31 +91,44 @@ internal class JobOrchestrator(
 
     private async Task ProcessJobAsync(JobConfiguration config, Queue<JobConfiguration> continuationQueue, bool isScheduledRun, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Executing job: {JobName}", config.Name);
-
-        await using var scope = serviceProvider.CreateAsyncScope();
-        if (scope.ServiceProvider.GetService(config.JobType) is not IJob job)
+        if (!executionTracker.TryMarkAsRunning(config.Name))
         {
-            logger.LogError("Failed to resolve job '{JobName}' from DI container. Ensure it is registered.", config.Name);
+            logger.LogInformation("Job '{JobName}' is already running. Skipping this execution.", config.Name);
             return;
         }
 
-        var stopwatch = Stopwatch.StartNew();
-        JobExecutionResult? result = null;
-        Exception? exception = null;
-
         try
         {
-            result = await job.ExecuteAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            exception = ex;
+            logger.LogInformation("Executing job: {JobName}", config.Name);
+
+            await using var scope = serviceProvider.CreateAsyncScope();
+            if (scope.ServiceProvider.GetService(config.JobType) is not IJob job)
+            {
+                logger.LogError("Failed to resolve job '{JobName}' from DI container. Ensure it is registered.", config.Name);
+                return;
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            JobExecutionResult? result = null;
+            Exception? exception = null;
+
+            try
+            {
+                result = await job.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                exception = ex;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                await HandleJobCompletionAsync(config, result, exception, stopwatch.Elapsed, continuationQueue, isScheduledRun, cancellationToken).ConfigureAwait(false);
+            }
         }
         finally
         {
-            stopwatch.Stop();
-            await HandleJobCompletionAsync(config, result, exception, stopwatch.Elapsed, continuationQueue, isScheduledRun, cancellationToken).ConfigureAwait(false);
+            executionTracker.MarkAsCompleted(config.Name);
         }
     }
 
@@ -140,7 +154,7 @@ internal class JobOrchestrator(
                 logger.LogInformation("Job {JobName} completed successfully in {ElapsedMilliseconds}ms.", config.Name, elapsed.TotalMilliseconds);
                 if (isScheduledRun && config.Schedule is not null)
                 {
-                    await historyStore.SetLastSuccessfulRunAsync(config.Name, DateTime.UtcNow, cancellationToken).ConfigureAwait(false);
+                    await historyStore.SetLastSuccessfulRunAsync(config.Name, DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
                 }
                 break;
             case JobCompletionState.Failure:

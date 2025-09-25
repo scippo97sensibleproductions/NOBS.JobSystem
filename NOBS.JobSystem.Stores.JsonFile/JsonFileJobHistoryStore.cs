@@ -25,7 +25,7 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
         return Task.CompletedTask;
     }
 
-    public async Task<IReadOnlyDictionary<string, DateTime>> GetLastRunTimesAsync(IEnumerable<string> jobNames, CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<string, DateTimeOffset>> GetLastRunTimesAsync(IEnumerable<string> jobNames, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
@@ -40,7 +40,7 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
         }
     }
 
-    public async Task SetLastSuccessfulRunAsync(string jobName, DateTime lastSuccessfulRun, CancellationToken cancellationToken)
+    public async Task SetLastSuccessfulRunAsync(string jobName, DateTimeOffset lastSuccessfulRun, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
@@ -55,7 +55,7 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
         }
     }
 
-    private async Task<Dictionary<string, DateTime>> ReadHistoriesFromFileAsync(CancellationToken cancellationToken)
+    private async Task<Dictionary<string, DateTimeOffset>> ReadHistoriesFromFileAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(_options.FilePath))
         {
@@ -68,10 +68,10 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
             return [];
         }
         
-        return JsonSerializer.Deserialize<Dictionary<string, DateTime>>(json) ?? [];
+        return JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(json) ?? [];
     }
 
-    private async Task WriteHistoriesToFileAsync(IReadOnlyDictionary<string, DateTime> histories, CancellationToken cancellationToken)
+    private async Task WriteHistoriesToFileAsync(IReadOnlyDictionary<string, DateTimeOffset> histories, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(histories, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(_options.FilePath, json, cancellationToken);
