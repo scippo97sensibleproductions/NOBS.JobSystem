@@ -6,7 +6,6 @@
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>NOBS.JobSystem.Stores.SqlServer</PackageId>
-        <Version>1.0.0</Version>
         <Authors>Scippo97</Authors>
         <Company>Scippo97 Sensible Productions</Company>
         <Description>SQL Server persistence provider for NOBS.JobSystem.</Description>
@@ -14,6 +13,7 @@
         <PackageProjectUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem</PackageProjectUrl>
         <RepositoryUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <NoWarn>$(NoWarn);NU5104</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
