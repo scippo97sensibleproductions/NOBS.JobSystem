@@ -34,12 +34,15 @@ jobs:
           echo "Determined Version: $STABLE_VERSION (Full Version: $VERSION)"
         shell: bash
 
-      - name: Build and Pack
+      - name: Build Solution
+        run: dotnet build -c Release -p:Version=${{ steps.minver.outputs.version }}
+
+      - name: Pack Projects
         run: |
           PACKAGES_DIR=${{ github.workspace }}/packages
           
-          for proj in $(find . -name "*.csproj" -print0 | xargs -0 grep -l '<GeneratePackageOnBuild>true</GeneratePackageOnBuild>'); do
-              dotnet pack $proj -c Release -p:Version=${{ steps.minver.outputs.version }} -o $PACKAGES_DIR
+          for proj in $(find . -name "*.csproj" -print0 | xargs -0 grep -l '<GeneratePackageOnBuild>true</GeneratePackageOnbuild>'); do
+              dotnet pack $proj -c Release --no-build -p:Version=${{ steps.minver.outputs.version }} -o $PACKAGES_DIR
           done
         shell: bash
 
