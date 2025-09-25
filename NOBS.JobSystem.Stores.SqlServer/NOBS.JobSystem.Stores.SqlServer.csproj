@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageId>NOBS.JobSystem.Stores.SqlServer</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Scippo97</Authors>
+        <Company>Scippo97 Sensible Productions</Company>
+        <Description>SQL Server persistence provider for NOBS.JobSystem.</Description>
+        <PackageTags>job;scheduler;cron;sqlserver</PackageTags>
+        <PackageProjectUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\NOBS.JobSystem\NOBS.JobSystem.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0-rc.1.25451.107" />
+    </ItemGroup>
+
+</Project>

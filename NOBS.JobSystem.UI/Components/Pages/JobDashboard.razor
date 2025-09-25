@@ -24,6 +24,7 @@ else
             <th>Last Successful Run (UTC)</th>
             <th>Next Scheduled Run (UTC)</th>
             <th>CRON Schedule</th>
+            <th>Actions</th>
         </tr>
         </thead>
         <tbody>
@@ -34,6 +35,12 @@ else
                 <td data-label="Last Run">@FormatDateTime(job.LastRunUtc)</td>
                 <td data-label="Next Run">@FormatDateTime(job.NextRunUtc)</td>
                 <td data-label="Schedule">@job.CronExpression</td>
+                <td data-label="Actions">
+                    <form method="post" action="/jobs/trigger">
+                        <input type="hidden" name="jobName" value="@job.JobName" />
+                        <button type="submit" class="button-force-run">Force Run</button>
+                    </form>
+                </td>
             </tr>
         }
         </tbody>

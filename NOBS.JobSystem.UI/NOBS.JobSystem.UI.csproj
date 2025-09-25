@@ -5,10 +5,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-
-        <!-- NuGet Package Details -->
         <PackageId>NOBS.JobSystem.UI</PackageId>
-        <Version>1.0.1</Version>
+        <Version>1.0.3</Version>
         <Authors>Scippo97</Authors>
         <Company>Scippo97 Sensible Productions</Company>
         <Description>A Blazor-based monitoring UI for the NOBS.JobSystem library.</Description>
@@ -19,9 +17,7 @@
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
-        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-
-        <!-- SourceLink Configuration -->
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>

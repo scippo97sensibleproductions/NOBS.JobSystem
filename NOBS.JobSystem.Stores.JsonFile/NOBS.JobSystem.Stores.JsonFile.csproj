@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageId>NOBS.JobSystem.Stores.JsonFile</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Scippo97</Authors>
+        <Company>Scippo97 Sensible Productions</Company>
+        <Description>JSON file persistence provider for NOBS.JobSystem.</Description>
+        <PackageTags>job;scheduler;cron;json;file</PackageTags>
+        <PackageProjectUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\NOBS.JobSystem\NOBS.JobSystem.csproj" />
+    </ItemGroup>
+
+</Project>

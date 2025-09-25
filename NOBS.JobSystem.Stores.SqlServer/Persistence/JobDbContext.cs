@@ -1,13 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using NOBS.JobSystem.Execution;
-using NOBS.JobSystem.Persistence.Entities;
+using NOBS.JobSystem.Stores.SqlServer.Persistence.Entities;
 
-namespace NOBS.JobSystem.Persistence;
+namespace NOBS.JobSystem.Stores.SqlServer.Persistence;
 
-internal sealed class JobDbContext(DbContextOptions<JobDbContext> options, IOptions<JobSystemOptions> jobSystemOptions) : DbContext(options)
+internal sealed class JobDbContext(
+    DbContextOptions<JobDbContext> options, 
+    IOptions<SqlServerOptions> jobSystemOptions) : DbContext(options)
 {
-    private readonly JobSystemOptions _jobSystemOptions = jobSystemOptions.Value;
+    private readonly SqlServerOptions _jobSystemOptions = jobSystemOptions.Value;
 
     public DbSet<JobExecutionHistory> JobExecutionHistories { get; set; }
 

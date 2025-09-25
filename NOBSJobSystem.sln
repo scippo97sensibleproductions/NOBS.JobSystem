@@ -6,6 +6,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOBS.JobSystem", "NOBS.JobS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOBS.JobSystem.Hosting", "NOBS.JobSystem.Hosting\NOBS.JobSystem.Hosting.csproj", "{5DE5DDAD-2A67-4D67-A39C-43316E073374}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOBS.JobSystem.Stores.SqlServer", "NOBS.JobSystem.Stores.SqlServer\NOBS.JobSystem.Stores.SqlServer.csproj", "{FB9D0F7A-8EA7-40C2-A0BE-A3E736D74991}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOBS.JobSystem.Stores.JsonFile", "NOBS.JobSystem.Stores.JsonFile\NOBS.JobSystem.Stores.JsonFile.csproj", "{B7FD56FB-F96D-4C08-86F5-786D27E38511}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +28,13 @@ Global
 		{5DE5DDAD-2A67-4D67-A39C-43316E073374}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5DE5DDAD-2A67-4D67-A39C-43316E073374}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5DE5DDAD-2A67-4D67-A39C-43316E073374}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB9D0F7A-8EA7-40C2-A0BE-A3E736D74991}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB9D0F7A-8EA7-40C2-A0BE-A3E736D74991}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB9D0F7A-8EA7-40C2-A0BE-A3E736D74991}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB9D0F7A-8EA7-40C2-A0BE-A3E736D74991}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7FD56FB-F96D-4C08-86F5-786D27E38511}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7FD56FB-F96D-4C08-86F5-786D27E38511}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7FD56FB-F96D-4C08-86F5-786D27E38511}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7FD56FB-F96D-4C08-86F5-786D27E38511}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

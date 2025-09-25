@@ -6,13 +6,11 @@
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-
-        <!-- NuGet Package Details -->
         <PackageId>NOBS.JobSystem</PackageId>
-        <Version>1.0.1</Version>
+        <Version>1.0.3</Version>
         <Authors>Scippo97</Authors>
         <Company>Scippo97 Sensible Productions</Company>
-        <Description>A lightweight, database-backed, dependency-injection friendly job scheduling system for .NET applications with CRON support, job chaining, and error handling.</Description>
+        <Description>A lightweight, persistence-agnostic, dependency-injection friendly job scheduling system for .NET applications with CRON support, job chaining, and error handling.</Description>
         <PackageTags>job;scheduler;cron;background;worker;dotnet</PackageTags>
         <PackageProjectUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem</PackageProjectUrl>
         <RepositoryUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem.git</RepositoryUrl>
@@ -20,9 +18,7 @@
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
-        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-
-        <!-- SourceLink Configuration -->
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -40,10 +36,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0-rc.1.25451.107" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0-rc.1.25451.107" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0-rc.1.25451.107" />
-        <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.0-rc.1.25451.107" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
         <PackageReference Include="NCrontab" Version="3.4.0" />
     </ItemGroup>

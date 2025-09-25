@@ -5,10 +5,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-
-        <!-- NuGet Package Details -->
         <PackageId>NOBS.JobSystem.Hosting</PackageId>
-        <Version>1.0.1</Version>
+        <Version>1.0.3</Version>
         <Authors>Scippo97</Authors>
         <Company>Scippo97 Sensible Productions</Company>
         <Description>A meta-package to easily install and configure the NOBS.JobSystem core library and its Blazor UI.</Description>
@@ -19,9 +17,7 @@
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
-        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-
-        <!-- SourceLink Configuration -->
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -39,7 +35,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\NOBS.JobSystem\NOBS.JobSystem.csproj" />
         <ProjectReference Include="..\NOBS.JobSystem.UI\NOBS.JobSystem.UI.csproj" />
     </ItemGroup>
 

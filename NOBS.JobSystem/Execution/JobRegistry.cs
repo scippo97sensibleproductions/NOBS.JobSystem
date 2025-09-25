@@ -10,7 +10,8 @@ public sealed class JobRegistry
     /// <summary>
     /// Gets the list of job configurations.
     /// </summary>
-    public List<JobConfiguration> JobConfigurations { get; } = [];
+    public IReadOnlyList<JobConfiguration> JobConfigurations => _jobConfigurations;
+    private readonly List<JobConfiguration> _jobConfigurations = [];
 
     /// <summary>
     /// Adds a job to the registry with a specified CRON schedule.
@@ -21,7 +22,7 @@ public sealed class JobRegistry
     public JobConfiguration AddJob<TJob>(string cronExpression) where TJob : IJob
     {
         var config = new JobConfiguration(typeof(TJob), cronExpression);
-        JobConfigurations.Add(config);
+        _jobConfigurations.Add(config);
         return config;
     }
 
@@ -33,10 +34,13 @@ public sealed class JobRegistry
     public JobConfiguration AddJob<TJob>() where TJob : IJob
     {
         var config = new JobConfiguration(typeof(TJob), null);
-        JobConfigurations.Add(config);
+        _jobConfigurations.Add(config);
         return config;
     }
 
     internal JobConfiguration? FindByType(Type jobType) =>
-        JobConfigurations.FirstOrDefault(c => c.JobType == jobType);
+        _jobConfigurations.FirstOrDefault(c => c.JobType == jobType);
+    
+    internal JobConfiguration? FindByName(string jobName) =>
+        _jobConfigurations.FirstOrDefault(c => c.Name.Equals(jobName, StringComparison.OrdinalIgnoreCase));
 }

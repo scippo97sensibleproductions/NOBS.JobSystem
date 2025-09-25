@@ -1,16 +1,13 @@
 ﻿using System.Diagnostics;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NOBS.JobSystem.Abstractions;
-using NOBS.JobSystem.Persistence;
-using NOBS.JobSystem.Persistence.Entities;
 
 namespace NOBS.JobSystem.Execution;
 
 internal class JobOrchestrator(
     IServiceProvider serviceProvider,
-    IDbContextFactory<JobDbContext> dbContextFactory,
+    IJobHistoryStore historyStore,
     JobRegistry jobRegistry,
     ILogger<JobOrchestrator> logger)
 {
@@ -21,40 +18,53 @@ internal class JobOrchestrator(
         UnhandledException
     }
 
-    public async Task RunScheduledJobs(CancellationToken cancellationToken)
+    public async Task RunScheduledJobsAsync(CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        var jobsToRun = await GetDueJobsAsync(now, cancellationToken).ConfigureAwait(false);
+        var dueJobs = await GetDueJobsAsync(now, cancellationToken).ConfigureAwait(false);
 
-        if (jobsToRun.Count == 0)
+        if (dueJobs.Count == 0)
         {
             logger.LogTrace("No scheduled jobs are due to run at {Now}", now);
             return;
         }
 
-        var jobQueue = new Queue<JobConfiguration>(jobsToRun);
+        var jobQueue = new Queue<JobConfiguration>(dueJobs);
+        await ProcessJobQueueAsync(jobQueue, isScheduledRun: true, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Scheduled job check cycle finished at {Now}", now);
+    }
 
+    public async Task RunTriggeredJobAsync(string jobName, CancellationToken cancellationToken)
+    {
+        var config = jobRegistry.FindByName(jobName);
+        if (config is null)
+        {
+            logger.LogError("A triggered job with name '{JobName}' was not found in the registry.", jobName);
+            return;
+        }
+
+        var jobQueue = new Queue<JobConfiguration>();
+        jobQueue.Enqueue(config);
+        
+        await ProcessJobQueueAsync(jobQueue, isScheduledRun: false, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Triggered job run for '{JobName}' finished.", jobName);
+    }
+    
+    private async Task ProcessJobQueueAsync(Queue<JobConfiguration> jobQueue, bool isScheduledRun, CancellationToken cancellationToken)
+    {
         while (jobQueue.Count > 0 && !cancellationToken.IsCancellationRequested)
         {
             var config = jobQueue.Dequeue();
-            await ProcessJobAsync(config, jobQueue, cancellationToken).ConfigureAwait(false);
+            await ProcessJobAsync(config, jobQueue, isScheduledRun, cancellationToken).ConfigureAwait(false);
         }
-
-        logger.LogInformation("Job check cycle finished at {Now}", now);
     }
 
     private async Task<List<JobConfiguration>> GetDueJobsAsync(DateTime now, CancellationToken cancellationToken)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-
         var scheduledJobs = jobRegistry.JobConfigurations.Where(c => c.Schedule is not null).ToList();
-        var jobNames = scheduledJobs.Select(c => c.Name).ToList();
-
-        var lastRunTimes = await dbContext.JobExecutionHistories
-            .AsNoTracking()
-            .Where(h => jobNames.Contains(h.JobName))
-            .ToDictionaryAsync(h => h.JobName, h => h.LastSuccessfulRun, cancellationToken)
-            .ConfigureAwait(false);
+        var jobNames = scheduledJobs.Select(c => c.Name);
+        
+        var lastRunTimes = await historyStore.GetLastRunTimesAsync(jobNames, cancellationToken).ConfigureAwait(false);
 
         var dueJobs = new List<JobConfiguration>();
         foreach (var config in scheduledJobs)
@@ -78,14 +88,14 @@ internal class JobOrchestrator(
         return dueJobs;
     }
 
-    private async Task ProcessJobAsync(JobConfiguration config, Queue<JobConfiguration> continuationQueue, CancellationToken cancellationToken)
+    private async Task ProcessJobAsync(JobConfiguration config, Queue<JobConfiguration> continuationQueue, bool isScheduledRun, CancellationToken cancellationToken)
     {
         logger.LogInformation("Executing job: {JobName}", config.Name);
 
         await using var scope = serviceProvider.CreateAsyncScope();
         if (scope.ServiceProvider.GetService(config.JobType) is not IJob job)
         {
-            logger.LogError("Failed to resolve job '{JobName}' from DI container. Ensure it is registered in Program.cs.", config.Name);
+            logger.LogError("Failed to resolve job '{JobName}' from DI container. Ensure it is registered.", config.Name);
             return;
         }
 
@@ -104,7 +114,7 @@ internal class JobOrchestrator(
         finally
         {
             stopwatch.Stop();
-            await HandleJobCompletionAsync(config, result, exception, stopwatch.Elapsed, continuationQueue, cancellationToken).ConfigureAwait(false);
+            await HandleJobCompletionAsync(config, result, exception, stopwatch.Elapsed, continuationQueue, isScheduledRun, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -114,6 +124,7 @@ internal class JobOrchestrator(
         Exception? exception,
         TimeSpan elapsed,
         Queue<JobConfiguration> continuationQueue,
+        bool isScheduledRun,
         CancellationToken cancellationToken)
     {
         (JobCompletionState state, Type? nextJobType) = (exception, result) switch
@@ -127,9 +138,9 @@ internal class JobOrchestrator(
         {
             case JobCompletionState.Success:
                 logger.LogInformation("Job {JobName} completed successfully in {ElapsedMilliseconds}ms.", config.Name, elapsed.TotalMilliseconds);
-                if (config.Schedule is not null)
+                if (isScheduledRun && config.Schedule is not null)
                 {
-                    await UpdateJobHistoryAsync(config.Name, DateTime.UtcNow, cancellationToken).ConfigureAwait(false);
+                    await historyStore.SetLastSuccessfulRunAsync(config.Name, DateTime.UtcNow, cancellationToken).ConfigureAwait(false);
                 }
                 break;
             case JobCompletionState.Failure:
@@ -154,15 +165,5 @@ internal class JobOrchestrator(
         
         logger.LogInformation("Queueing continuation/error job: {JobName}", continuationJob.Name);
         continuationQueue.Enqueue(continuationJob);
-    }
-
-    private async Task UpdateJobHistoryAsync(string jobName, DateTime executionTime, CancellationToken ct)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        var historyRecord = await dbContext.JobExecutionHistories.FindAsync([jobName], ct).ConfigureAwait(false)
-                            ?? dbContext.JobExecutionHistories.Add(new JobExecutionHistory { JobName = jobName }).Entity;
-
-        historyRecord.LastSuccessfulRun = executionTime;
-        await dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 }
