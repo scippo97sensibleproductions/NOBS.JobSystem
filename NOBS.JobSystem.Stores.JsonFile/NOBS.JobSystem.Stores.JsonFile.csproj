@@ -6,7 +6,6 @@
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>NOBS.JobSystem.Stores.JsonFile</PackageId>
-        <Version>1.0.0</Version>
         <Authors>Scippo97</Authors>
         <Company>Scippo97 Sensible Productions</Company>
         <Description>JSON file persistence provider for NOBS.JobSystem.</Description>
@@ -14,7 +13,16 @@
         <PackageProjectUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem</PackageProjectUrl>
         <RepositoryUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>icon.png</PackageIcon>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
+        <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+        <None Include="..\icon.png" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\NOBS.JobSystem\NOBS.JobSystem.csproj" />
