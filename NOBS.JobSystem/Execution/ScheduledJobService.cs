@@ -14,37 +14,34 @@ internal class ScheduledJobService(
     {
         logger.LogInformation("Scheduled Job Service is starting.");
 
-        using var timer = new PeriodicTimer(pollingFrequency);
+        var scheduledProcessingTask = ProcessScheduledJobsAsync(stoppingToken);
+        var triggeredProcessingTask = ProcessTriggeredJobsAsync(stoppingToken);
 
-        try
-        {
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                var scheduledTask = timer.WaitForNextTickAsync(stoppingToken).AsTask();
-                var triggeredTask = jobTrigger.GetTriggeredJobsAsync(stoppingToken).FirstOrDefaultAsync(stoppingToken).AsTask();
+        var completedTask = await Task.WhenAny(scheduledProcessingTask, triggeredProcessingTask);
 
-                var completedTask = await Task.WhenAny(scheduledTask, triggeredTask);
-
-                if (completedTask == scheduledTask && scheduledTask.Result)
-                {
-                    await RunScheduledJobsAsync(stoppingToken);
-                }
-                else if (completedTask == triggeredTask && triggeredTask.Result is { } jobName)
-                {
-                    await RunTriggeredJobAsync(jobName, stoppingToken);
-                }
-            }
-        }
-        catch (OperationCanceledException)
+        if (completedTask.IsFaulted)
         {
-            logger.LogInformation("Scheduled Job Service is stopping due to cancellation.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogCritical(ex, "A critical error occurred in the Scheduled Job Service. The service is stopping.");
+            logger.LogCritical(completedTask.Exception?.GetBaseException(), "A critical error occurred in the Scheduled Job Service. The service is stopping.");
         }
 
         logger.LogInformation("Scheduled Job Service has stopped.");
+    }
+
+    private async Task ProcessScheduledJobsAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(pollingFrequency);
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            await RunScheduledJobsAsync(stoppingToken);
+        }
+    }
+
+    private async Task ProcessTriggeredJobsAsync(CancellationToken stoppingToken)
+    {
+        await foreach (var jobName in jobTrigger.GetTriggeredJobsAsync(stoppingToken))
+        {
+            _ = RunTriggeredJobAsync(jobName, stoppingToken);
+        }
     }
 
     private async Task RunScheduledJobsAsync(CancellationToken stoppingToken)
@@ -52,7 +49,7 @@ internal class ScheduledJobService(
         try
         {
             logger.LogInformation("Scheduled Job Service is checking for due jobs.");
-            await orchestrator.RunScheduledJobsAsync(stoppingToken).ConfigureAwait(false);
+            await orchestrator.RunScheduledJobsAsync(stoppingToken);
         }
         catch (Exception ex)
         {
@@ -65,7 +62,7 @@ internal class ScheduledJobService(
         try
         {
             logger.LogInformation("Executing manually triggered job: {JobName}", jobName);
-            await orchestrator.RunTriggeredJobAsync(jobName, stoppingToken).ConfigureAwait(false);
+            await orchestrator.RunTriggeredJobAsync(jobName, stoppingToken);
         }
         catch (Exception ex)
         {
