@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageId>NOBS.JobSystem.Stores.MongoDb</PackageId>
+        <Authors>Scippo97</Authors>
+        <Company>Scippo97 Sensible Productions</Company>
+        <Description>MongoDB persistence provider for NOBS.JobSystem.</Description>
+        <PackageTags>job;scheduler;cron;mongodb</PackageTags>
+        <PackageProjectUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/scippo97sensibleproductions/NOBS.JobSystem.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>icon.png</PackageIcon>
+        <TargetFrameworks>net10.0;net8.0;net6.0</TargetFrameworks>
+        <LangVersion>default</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
+        <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+        <None Include="..\icon.png" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MongoDB.Driver" Version="3.5.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\NOBS.JobSystem\NOBS.JobSystem.csproj" />
+    </ItemGroup>
+
+</Project>

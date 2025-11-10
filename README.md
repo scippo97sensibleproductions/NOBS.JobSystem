@@ -5,7 +5,7 @@ A lightweight, persistence-agnostic, dependency-injection friendly job schedulin
 ## Key Features
 
 - **Fluent Configuration:** A clean, expressive API for registering jobs and their dependencies.
-- **Pluggable Storage:** Persist job history to SQL Server, JSON files, or a custom provider. The core system is completely decoupled from the storage layer.
+- **Pluggable Storage:** Persist job history to SQL Server, MongoDB, SQLite, JSON files, or a custom provider. The core system is completely decoupled from the storage layer.
 - **Stable Job Identity:** Use the `[JobName]` attribute to assign a persistent identifier to your jobs, preventing history loss when you refactor class names.
 - **CRON Scheduling:** Define recurring jobs using standard CRON expressions (`minute hour day-of-month month day-of-week`).
 - **Job Chaining:** Create powerful workflows by specifying continuation jobs on success or failure, either statically during registration or dynamically at runtime.
@@ -24,6 +24,8 @@ The system is distributed across multiple NuGet packages for modularity:
 | `NOBS.JobSystem.Hosting`            | A meta-package for easily installing and configuring the UI endpoint.        |
 | `NOBS.JobSystem.UI`                 | The Blazor-based monitoring UI. (Typically consumed via the Hosting package) |
 | `NOBS.JobSystem.Stores.SqlServer`   | Persistence provider for Microsoft SQL Server.                               |
+| `NOBS.JobSystem.Stores.MongoDb`     | Persistence provider for MongoDB.                                            |
+| `NOBS.JobSystem.Stores.SQLite`      | Persistence provider for SQLite.                                             |
 | `NOBS.JobSystem.Stores.JsonFile`    | Persistence provider for a local JSON file (ideal for simple, single-instance apps). |
 
 ## Usage Guide
@@ -38,8 +40,17 @@ This guide demonstrates how to set up a multi-step job workflow:
 Install the core library, a storage provider, and the UI hosting package.
 
 ```shell
+# Core packages
 dotnet add package NOBS.JobSystem
 dotnet add package NOBS.JobSystem.Hosting
+
+# Choose ONE storage provider
+dotnet add package NOBS.JobSystem.Stores.SqlServer
+# or
+dotnet add package NOBS.JobSystem.Stores.MongoDb
+# or
+dotnet add package NOBS.JobSystem.Stores.SQLite
+# or
 dotnet add package NOBS.JobSystem.Stores.JsonFile
 ```
 
@@ -94,13 +105,13 @@ public class ArchiveOldReportsJob(ILogger<ArchiveOldReportsJob> logger) : IJob
 [JobName("report-failure-handler")]
 public class ReportGenerationFailedJob(ILogger<ReportGenerationFailedJob> logger) : IJob
 {
-public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
-{
-logger.LogError("Report generation failed. Notifying administrators.");
-// ... notification logic ...
-await Task.CompletedTask;
-return JobExecutionResult.Success();
-}
+    public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        logger.LogError("Report generation failed. Notifying administrators.");
+        // ... notification logic ...
+        await Task.CompletedTask;
+        return JobExecutionResult.Success();
+    }
 }
 ```
 
@@ -113,6 +124,9 @@ using NOBS.JobSystem;
 using NOBS.JobSystem.Execution;
 using NOBS.JobSystem.Hosting;
 using NOBS.JobSystem.Stores.JsonFile;
+using NOBS.JobSystem.Stores.MongoDb;
+using NOBS.JobSystem.Stores.SQLite;
+using NOBS.JobSystem.Stores.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -132,7 +146,7 @@ builder.Services
         registry.AddJob<ArchiveOldReportsJob>();
         registry.AddJob<ReportGenerationFailedJob>();
     })
-    // 3. Configure a storage provider
+    // 3. Configure a storage provider (CHOOSE ONE)
     .UseJsonFile(options =>
     {
         // The path is relative to the application's content root.
@@ -145,6 +159,19 @@ builder.Services
     //     options.ConnectionString = builder.Configuration.GetConnectionString("JobDb");
     //     options.SchemaName = "jobs";
     //     options.PollingFrequency = TimeSpan.FromMinutes(1);
+    // });
+    // Or, for MongoDB:
+    // .UseMongoDb(options =>
+    // {
+    //      options.ConnectionString = builder.Configuration.GetConnectionString("JobDbMongo");
+    //      options.DatabaseName = "JobSystem";
+    //      options.PollingFrequency = TimeSpan.FromMinutes(1);
+    // });
+    // Or, for SQLite:
+    // .UseSQLite(options =>
+    // {
+    //      options.ConnectionString = "Data Source=jobs.db";
+    //      options.PollingFrequency = TimeSpan.FromMinutes(1);
     // });
 
 // 4. Add services for the Blazor UI
