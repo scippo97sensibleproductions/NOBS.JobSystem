@@ -1,10 +1,14 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Options;
 using NOBS.JobSystem.Abstractions;
 
 namespace NOBS.JobSystem.Stores.JsonFile;
 
-internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options) : IJobHistoryStore, IAsyncDisposable
+internal sealed class JsonFileJobHistoryStore(
+    IOptions<JsonFileOptions> options,
+    JsonTypeInfo<Dictionary<string, DateTimeOffset>> historyTypeInfo)
+    : IJobHistoryStore, IAsyncDisposable
 {
     private readonly JsonFileOptions _options = options.Value;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -12,7 +16,7 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
     public Task InitializeAsync(CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(_options.FilePath);
-        if (directory is not null && !Directory.Exists(directory))
+        if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
         }
@@ -27,10 +31,10 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
 
     public async Task<IReadOnlyDictionary<string, DateTimeOffset>> GetLastRunTimesAsync(IEnumerable<string> jobNames, CancellationToken cancellationToken)
     {
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var histories = await ReadHistoriesFromFileAsync(cancellationToken);
+            var histories = await ReadHistoriesFromFileAsync(cancellationToken).ConfigureAwait(false);
             return histories.Where(h => jobNames.Contains(h.Key))
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
@@ -42,12 +46,12 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
 
     public async Task SetLastSuccessfulRunAsync(string jobName, DateTimeOffset lastSuccessfulRun, CancellationToken cancellationToken)
     {
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var histories = await ReadHistoriesFromFileAsync(cancellationToken);
+            var histories = await ReadHistoriesFromFileAsync(cancellationToken).ConfigureAwait(false);
             histories[jobName] = lastSuccessfulRun;
-            await WriteHistoriesToFileAsync(histories, cancellationToken);
+            await WriteHistoriesToFileAsync(histories, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -57,29 +61,27 @@ internal sealed class JsonFileJobHistoryStore(IOptions<JsonFileOptions> options)
 
     private async Task<Dictionary<string, DateTimeOffset>> ReadHistoriesFromFileAsync(CancellationToken cancellationToken)
     {
-        if (!File.Exists(_options.FilePath))
-        {
-            return [];
-        }
+        if (!File.Exists(_options.FilePath)) return [];
 
-        var json = await File.ReadAllTextAsync(_options.FilePath, cancellationToken);
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return [];
-        }
-        
-        return JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(json) ?? [];
+        await using var stream = File.OpenRead(_options.FilePath);
+        if (stream.Length == 0) return [];
+
+        return (await JsonSerializer.DeserializeAsync(stream, historyTypeInfo, cancellationToken).ConfigureAwait(false)) ?? [];
     }
 
     private async Task WriteHistoriesToFileAsync(IReadOnlyDictionary<string, DateTimeOffset> histories, CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(histories, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(_options.FilePath, json, cancellationToken);
+        var concreteHistories = histories is Dictionary<string, DateTimeOffset> h 
+            ? h 
+            : new Dictionary<string, DateTimeOffset>(histories);
+
+        await using var stream = File.Create(_options.FilePath);
+        await JsonSerializer.SerializeAsync(stream, concreteHistories, historyTypeInfo, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _semaphore.WaitAsync();
+        await _semaphore.WaitAsync().ConfigureAwait(false);
         _semaphore.Release();
         _semaphore.Dispose();
     }

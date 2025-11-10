@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NOBS.JobSystem.Abstractions;
 using NOBS.JobSystem.Execution;
+using NOBS.JobSystem.Stores.JsonFile.Persistence;
 
 namespace NOBS.JobSystem.Stores.JsonFile;
 
@@ -12,6 +13,8 @@ public static class JsonFileJobSystemBuilderExtensions
         Action<JsonFileOptions> configure)
     {
         builder.Services.Configure(configure);
+        
+        builder.Services.TryAddSingleton(JobHistoryJsonContext.Default.DictionaryStringDateTimeOffset);
         builder.Services.TryAddSingleton<IJobHistoryStore, JsonFileJobHistoryStore>();
         
         builder.Services.AddOptions<JobSystemOptions>()

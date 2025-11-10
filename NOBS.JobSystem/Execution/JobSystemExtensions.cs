@@ -24,17 +24,6 @@ public static class JobSystemExtensions
         var registry = new JobRegistry();
         configureJobs(registry);
         ValidateJobNameUniqueness(registry);
-        
-        var allJobTypes = registry.JobConfigurations
-            .SelectMany(c => new[] { c.JobType, c.ErrorJobType })
-            .Where(t => t is not null)
-            .Select(t => t!)
-            .Distinct();
-
-        foreach (var jobType in allJobTypes)
-        {
-            services.TryAddScoped(jobType);
-        }
 
         services.TryAddSingleton(registry);
         services.TryAddSingleton<IJobExecutionTracker, InMemoryJobExecutionTracker>();

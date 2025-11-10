@@ -10,7 +10,8 @@ A lightweight, persistence-agnostic, dependency-injection friendly job schedulin
 - **CRON Scheduling:** Define recurring jobs using standard CRON expressions (`minute hour day-of-month month day-of-week`).
 - **Job Chaining:** Create powerful workflows by specifying continuation jobs on success or failure, either statically during registration or dynamically at runtime.
 - **Global Error Handling:** Configure a specific job to run whenever any unhandled exception occurs.
-- **DI-First Design:** Jobs are resolved from the service container, giving them full access to all registered application services (e.g., database contexts, loggers, business services).
+- **DI-First Design:** Jobs are resolved from the service container, giving them full access to all registered application services.
+- **Trimming and AOT Friendly:** Designed to work out-of-the-box with trimmed and AOT-compiled applications by default, with no complex configuration required.
 - **Manual Triggering:** Force any registered job to run immediately via the monitoring UI or programmatically using the `IJobTrigger` service.
 - **Optional Monitoring UI:** A clean, lightweight Blazor UI to monitor job statuses, last run times, and next scheduled runs.
 
@@ -60,24 +61,14 @@ Jobs are simple classes that implement `IJob`. They can be injected with any ser
 
 **ProcessDailyReportsJob.cs**
 ```csharp
-// This job runs on a schedule.
 [JobName("report-processor")]
 public class ProcessDailyReportsJob(ILogger<ProcessDailyReportsJob> logger, IReportGenerator reportGenerator) : IJob
 {
     public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Starting daily report generation...");
-
         bool success = await reportGenerator.GenerateAsync(cancellationToken);
-
-        if (success)
-        {
-            // The job succeeded. The static chain defined in Program.cs
-            // for success (`ArchiveOldReportsJob`) will be triggered.
-            return JobExecutionResult.Success();
-        }
-
-        // The job failed. The static chain for failure will be triggered.
+        if (success) return JobExecutionResult.Success();
         return JobExecutionResult.Failure();
     }
 }
@@ -85,14 +76,12 @@ public class ProcessDailyReportsJob(ILogger<ProcessDailyReportsJob> logger, IRep
 
 **ArchiveOldReportsJob.cs**
 ```csharp
-// This job is triggered only as a continuation.
 [JobName("report-archiver")]
 public class ArchiveOldReportsJob(ILogger<ArchiveOldReportsJob> logger) : IJob
 {
     public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Archiving old reports...");
-        // ... archiving logic ...
         await Task.Delay(500, cancellationToken);
         return JobExecutionResult.Success();
     }
@@ -101,14 +90,12 @@ public class ArchiveOldReportsJob(ILogger<ArchiveOldReportsJob> logger) : IJob
 
 **ReportGenerationFailedJob.cs**
 ```csharp
-// This job is an error handler.
 [JobName("report-failure-handler")]
 public class ReportGenerationFailedJob(ILogger<ReportGenerationFailedJob> logger) : IJob
 {
     public async Task<JobExecutionResult> ExecuteAsync(CancellationToken cancellationToken)
     {
         logger.LogError("Report generation failed. Notifying administrators.");
-        // ... notification logic ...
         await Task.CompletedTask;
         return JobExecutionResult.Success();
     }
@@ -130,23 +117,29 @@ using NOBS.JobSystem.Stores.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add application services used by your jobs
+// 1. Add application services used by your jobs
 builder.Services.AddScoped<IReportGenerator, ReportGenerator>();
 
-// 1. Add the Job System
+// 2. CRITICAL: Register all of your job types with the DI container.
+// This is required for the system to find and execute them, especially in trimmed/AOT applications.
+builder.Services.AddScoped<ProcessDailyReportsJob>();
+builder.Services.AddScoped<ArchiveOldReportsJob>();
+builder.Services.AddScoped<ReportGenerationFailedJob>();
+
+// 3. Add the Job System
 builder.Services
     .AddJobSystem(registry =>
     {
-        // 2. Register jobs and define workflows
+        // 4. Register jobs and define workflows
         registry.AddJob<ProcessDailyReportsJob>("0 1 * * *") // Run at 1:00 AM UTC daily
             .OnSuccess<ArchiveOldReportsJob>()
             .OnError<ReportGenerationFailedJob>();
 
-        // Register continuation/error jobs without a schedule
+        // Register continuation/error jobs without a schedule so the system is aware of them
         registry.AddJob<ArchiveOldReportsJob>();
         registry.AddJob<ReportGenerationFailedJob>();
     })
-    // 3. Configure a storage provider (CHOOSE ONE)
+    // 5. Configure a storage provider (CHOOSE ONE)
     .UseJsonFile(options =>
     {
         // The path is relative to the application's content root.
@@ -174,14 +167,14 @@ builder.Services
     //      options.PollingFrequency = TimeSpan.FromMinutes(1);
     // });
 
-// 4. Add services for the Blazor UI
+// 6. Add services for the Blazor UI
 builder.Services.AddJobMonitorUI();
 
 var app = builder.Build();
 
 // ... other middleware
 
-// 5. Map the Blazor UI and the trigger endpoint
+// 7. Map the Blazor UI and the trigger endpoint
 app.MapHostedJobSystemUI();
 
 app.Run();
@@ -211,7 +204,7 @@ public class DynamicWorkflowJob : IJob
     }
 }
 ```
-*Note: `HighPriorityContinuationJob` and `LowPriorityContinuationJob` must still be registered with `registry.AddJob<T>()` so the system is aware of them.*
+*Note: `HighPriorityContinuationJob` and `LowPriorityContinuationJob` must still be registered with DI and the `JobRegistry` so the system is aware of them.*
 
 ### Stable Job Naming with `[JobName]`
 
