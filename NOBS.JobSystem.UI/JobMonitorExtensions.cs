@@ -18,7 +18,11 @@ public static class JobMonitorExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddJobMonitorUI(this IServiceCollection services)
     {
+#if NET8_0_OR_GREATER
         services.AddRazorComponents();
+#else
+        services.AddServerSideBlazor();
+#endif
         services.AddScoped<JobStatusService>();
         return services;
     }
@@ -30,7 +34,11 @@ public static class JobMonitorExtensions
     /// <returns>The endpoint route builder for chaining.</returns>
     public static IEndpointRouteBuilder MapJobMonitorUI(this IEndpointRouteBuilder endpoints)
     {
+#if NET8_0_OR_GREATER
         endpoints.MapRazorComponents<App>();
+#else
+        endpoints.MapBlazorHub();
+#endif
         return endpoints;
     }
 }

@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 using NOBS.JobSystem.Abstractions;
 using NOBS.JobSystem.UI;
 
@@ -12,7 +11,7 @@ public static class JobSystemHostingExtensions
 {
     public static IEndpointRouteBuilder MapHostedJobSystemUI(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/jobs/trigger", async (
+        var routeHandler = endpoints.MapPost("/jobs/trigger", async (
             [FromForm] string jobName,
             [FromServices] IJobTrigger jobTrigger,
             HttpContext httpContext) =>
@@ -23,7 +22,11 @@ public static class JobSystemHostingExtensions
             }
             httpContext.Response.Headers.Location = "/jobs";
             return Results.StatusCode(303);
-        }).DisableAntiforgery();
+        });
+        
+#if NET7_0_OR_GREATER
+        routeHandler.DisableAntiforgery();
+#endif
         
         endpoints.MapJobMonitorUI();
         
