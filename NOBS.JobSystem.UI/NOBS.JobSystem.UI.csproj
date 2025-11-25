@@ -23,6 +23,7 @@
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <TargetFrameworks>net10.0;net8.0;net6.0</TargetFrameworks>
         <LangVersion>default</LangVersion>
+        <AnalysisLevel>latest-all</AnalysisLevel>
     </PropertyGroup>
 
     <ItemGroup>

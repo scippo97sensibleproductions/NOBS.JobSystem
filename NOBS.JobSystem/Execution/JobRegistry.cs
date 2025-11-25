@@ -1,11 +1,12 @@
-﻿using NOBS.JobSystem.Abstractions;
+﻿using Microsoft.Extensions.Configuration;
+using NOBS.JobSystem.Abstractions;
 
 namespace NOBS.JobSystem.Execution;
 
 /// <summary>
-/// A registry for discovering and configuring jobs.
+/// A registry for discovering and configuring jobs, with optional support for external configuration.
 /// </summary>
-public sealed class JobRegistry
+public sealed class JobRegistry(IConfiguration? configuration = null)
 {
     /// <summary>
     /// Gets the list of job configurations.
@@ -14,28 +15,50 @@ public sealed class JobRegistry
     private readonly List<JobConfiguration> _jobConfigurations = [];
 
     /// <summary>
-    /// Adds a job to the registry with a specified CRON schedule.
+    /// Adds a job to the registry. The schedule is determined in the following order:
+    /// 1. Configuration (if a value exists in "Jobs:{JobName}").
+    /// 2. The provided <paramref name="cronExpression"/>.
     /// </summary>
     /// <typeparam name="TJob">The type of the job to add, which must implement <see cref="IJob"/>.</typeparam>
-    /// <param name="cronExpression">The CRON expression that defines the job's schedule.</param>
-    /// <returns>A <see cref="JobConfiguration"/> object for further setup, such as specifying an error handler.</returns>
+    /// <param name="cronExpression">The default CRON expression to use if not overridden by configuration.</param>
+    /// <returns>A <see cref="JobConfiguration"/> object for further setup.</returns>
     public JobConfiguration AddJob<TJob>(string cronExpression) where TJob : IJob
     {
-        var config = new JobConfiguration(typeof(TJob), cronExpression);
+        var jobName = JobConfiguration.GetJobName(typeof(TJob));
+        var resolvedCron = ResolveCronExpression(jobName) ?? cronExpression;
+        
+        var config = new JobConfiguration(typeof(TJob), resolvedCron);
         _jobConfigurations.Add(config);
         return config;
     }
 
     /// <summary>
-    /// Adds a job to the registry without a schedule. This is for jobs that are only triggered as continuations or error handlers.
+    /// Adds a job to the registry without a hardcoded schedule.
+    /// A schedule will only be applied if one is found in the configuration.
     /// </summary>
     /// <typeparam name="TJob">The type of the job to add, which must implement <see cref="IJob"/>.</typeparam>
     /// <returns>A <see cref="JobConfiguration"/> object for further setup.</returns>
     public JobConfiguration AddJob<TJob>() where TJob : IJob
     {
-        var config = new JobConfiguration(typeof(TJob), null);
+        var jobName = JobConfiguration.GetJobName(typeof(TJob));
+        var resolvedCron = ResolveCronExpression(jobName);
+        
+        var config = new JobConfiguration(typeof(TJob), resolvedCron);
         _jobConfigurations.Add(config);
         return config;
+    }
+
+    private string? ResolveCronExpression(string jobName)
+    {
+        if (configuration is null)
+        {
+            return null;
+        }
+
+        var configSection = configuration.GetSection($"Jobs:{jobName}");
+        var value = configSection.Value;
+
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     internal JobConfiguration? FindByType(Type jobType) =>

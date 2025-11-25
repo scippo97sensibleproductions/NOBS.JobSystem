@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NOBS.JobSystem.Abstractions;
@@ -9,12 +10,29 @@ namespace NOBS.JobSystem.Stores.SqlServer;
 
 public static class SqlServerJobSystemBuilderExtensions
 {
-    public static IJobSystemBuilder UseSqlServer(
-        this IJobSystemBuilder builder,
-        Action<SqlServerOptions> configure)
+    extension(IJobSystemBuilder builder)
     {
-        builder.Services.Configure(configure);
+        /// <summary>
+        /// Configures the job system to use SQL Server using a manual configuration delegate.
+        /// </summary>
+        public IJobSystemBuilder UseSqlServer(Action<SqlServerOptions> configure)
+        {
+            builder.Services.Configure(configure);
+            return RegisterSqlServerServices(builder);
+        }
 
+        /// <summary>
+        /// Configures the job system to use SQL Server by binding options from the specified configuration section.
+        /// </summary>
+        public IJobSystemBuilder UseSqlServer(IConfiguration configuration)
+        {
+            builder.Services.Configure<SqlServerOptions>(configuration);
+            return RegisterSqlServerServices(builder);
+        }
+    }
+
+    private static IJobSystemBuilder RegisterSqlServerServices(IJobSystemBuilder builder)
+    {
         builder.Services.AddDbContextFactory<JobDbContext>((sp, dbOptions) =>
         {
             var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SqlServerOptions>>().Value;
@@ -23,12 +41,11 @@ public static class SqlServerJobSystemBuilderExtensions
 
         builder.Services.TryAddSingleton<IJobHistoryStore, SqlServerJobHistoryStore>();
 
+        // Map the provider specific PollingFrequency to the global JobSystemOptions
         builder.Services.AddOptions<JobSystemOptions>()
-            .Configure(options =>
+            .Configure<Microsoft.Extensions.Options.IOptions<SqlServerOptions>>((options, sqlOptions) =>
             {
-                var sqlOptions = new SqlServerOptions();
-                configure(sqlOptions);
-                options.PollingFrequency = sqlOptions.PollingFrequency;
+                options.PollingFrequency = sqlOptions.Value.PollingFrequency;
             });
         
         return builder;

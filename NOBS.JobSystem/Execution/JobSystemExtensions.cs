@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,40 +12,58 @@ namespace NOBS.JobSystem.Execution;
 /// </summary>
 public static class JobSystemExtensions
 {
-    /// <summary>
-    /// Adds the core job system services to the specified <see cref="IServiceCollection"/>.
-    /// </summary>
     /// <param name="services">The service collection to add the services to.</param>
-    /// <param name="configureJobs">An action to configure the jobs in the <see cref="JobRegistry"/>.</param>
-    /// <returns>An <see cref="IJobSystemBuilder"/> for chaining storage provider configuration.</returns>
-    public static IJobSystemBuilder AddJobSystem(
-        this IServiceCollection services,
-        Action<JobRegistry> configureJobs)
+    extension(IServiceCollection services)
     {
-        var registry = new JobRegistry();
-        configureJobs(registry);
-        ValidateJobNameUniqueness(registry);
-
-        services.TryAddSingleton(registry);
-        services.TryAddSingleton<IJobExecutionTracker, InMemoryJobExecutionTracker>();
-        services.TryAddSingleton<JobOrchestrator>();
-        services.TryAddSingleton<IJobTrigger, InMemoryJobTrigger>();
-
-        services.AddHostedService(sp =>
+        /// <summary>
+        /// Adds the core job system services to the specified <see cref="IServiceCollection"/> using manual configuration.
+        /// </summary>
+        /// <param name="configureJobs">An action to configure the jobs in the <see cref="JobRegistry"/>.</param>
+        /// <returns>An <see cref="IJobSystemBuilder"/> for chaining storage provider configuration.</returns>
+        public IJobSystemBuilder AddJobSystem(Action<JobRegistry> configureJobs)
         {
-            var options = sp.GetService<Microsoft.Extensions.Options.IOptions<JobSystemOptions>>()?.Value ?? new JobSystemOptions();
-            return new ScheduledJobService(
-                sp.GetRequiredService<JobOrchestrator>(),
-                sp.GetRequiredService<IJobTrigger>(),
-                options.PollingFrequency,
-                sp.GetRequiredService<ILogger<ScheduledJobService>>());
-        });
-        
-        services.AddHostedService<StorageInitializer>();
+            return services.AddJobSystem(null, configureJobs);
+        }
 
-        return new JobSystemBuilder(services);
+        /// <summary>
+        /// Adds the core job system services to the specified <see cref="IServiceCollection"/> using <see cref="IConfiguration"/>.
+        /// </summary>
+        /// <param name="configuration">The configuration section (e.g. "JobSystem") containing settings and job schedules.</param>
+        /// <param name="configureJobs">An action to register job types. Schedules defined in configuration take precedence.</param>
+        /// <returns>An <see cref="IJobSystemBuilder"/> for chaining storage provider configuration.</returns>
+        public IJobSystemBuilder AddJobSystem(IConfiguration? configuration,
+            Action<JobRegistry> configureJobs)
+        {
+            var registry = new JobRegistry(configuration);
+            configureJobs(registry);
+            ValidateJobNameUniqueness(registry);
+
+            services.TryAddSingleton(registry);
+            services.TryAddSingleton<IJobExecutionTracker, InMemoryJobExecutionTracker>();
+            services.TryAddSingleton<JobOrchestrator>();
+            services.TryAddSingleton<IJobTrigger, InMemoryJobTrigger>();
+
+            if (configuration is not null)
+            {
+                services.Configure<JobSystemOptions>(configuration);
+            }
+
+            services.AddHostedService(sp =>
+            {
+                var options = sp.GetService<Microsoft.Extensions.Options.IOptions<JobSystemOptions>>()?.Value ?? new JobSystemOptions();
+                return new ScheduledJobService(
+                    sp.GetRequiredService<JobOrchestrator>(),
+                    sp.GetRequiredService<IJobTrigger>(),
+                    options.PollingFrequency,
+                    sp.GetRequiredService<ILogger<ScheduledJobService>>());
+            });
+        
+            services.AddHostedService<StorageInitializer>();
+
+            return new JobSystemBuilder(services);
+        }
     }
-    
+
     private static void ValidateJobNameUniqueness(JobRegistry registry)
     {
         var duplicateNames = registry.JobConfigurations
